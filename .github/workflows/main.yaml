@@ -1,0 +1,46 @@
+name: Auto-build HTML files
+
+on:
+  push:
+    branches:
+      - working
+  schedule:
+    - cron: '0 8 * * WED'  # Runs at 8:00 AM UTC every Wednesday
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8]
+
+    steps:
+      - name: Checkout master branch and build website
+        uses: actions/checkout@v2
+      - name: Reset master to point to working's HEAD
+        run: |
+          git fetch --all --no-tags
+          git reset --hard origin/working
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r src/scripts/requirements.txt
+      - name: Run python build script
+        run: |
+          python src/scripts/build_site.py
+      - name: Commit files
+        run: |
+          git config --local user.name "Github Action"
+          git config --local user.email "action@github.com"
+          git add --all
+          git diff-index --quiet HEAD || git commit -m "Auto-build"
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          force: true
